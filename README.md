@@ -1,49 +1,51 @@
-# LiDAR-guided Shepherding Research Scaffold
+# LLM-Augmented StringNet Shepherding (shepherd_codex)
 
-This repository provides a modular multi-agent shepherding environment with physically grounded damped double-integrator dynamics, sheep LiDAR sensing, deterministic mock LLM planning, and RL training/evaluation scaffolds.
+This repository includes `shepherd_codex/`, a modular Python implementation of an LLM-augmented StringNet-style herding system with online adapter updates when planner behavior fails.
 
-## Main components
-
-- `shepherd_env/` environment API and simulation modules.
-- `train/` starter scripts for scratch RL, optional behavior cloning warm-start, and LLM adapter training.
-- `eval/` evaluation sweeps over `{N_a, N_d, FOV, n_rays}`.
-- `tests/` unit and integration tests for LiDAR, spawn, dynamics, planner, and scenarios.
-- `configs/` scenario defaults.
-
-## Environment API
-
-```python
-from shepherd_env import ShepherdEnv, EnvConfig
-
-env = ShepherdEnv(EnvConfig())
-obs = env.reset(seed=42)
-obs, rewards, done, info = env.step({"dog_0": [0.0, 0.0]})
-```
-
-`ShepherdEnv` exposes:
-
-- `reset(seed=None, config=None)`
-- `step(action_dict)`
-- `render(mode='human'|'rgb_array')`
-- `set_spawn_config(spawn_cfg)`
-- `get_state()` and `set_state(state)`
-
-## Physics and sensing
-
-- Dynamics: `r_dot=v`, `v_dot=u-C_D|v|v`, integrated by semi-implicit Euler.
-- Sheep controller: Reynolds-like flocking plus dog repulsion.
-- Dogs: continuous acceleration controls with safety projection and fallback baseline control.
-- Sheep LiDAR: ray-casting against circle-bodied agents and polygon obstacles with configurable FOV in `[60, 120]`.
-
-## RL without baseline demos
-
-- `train/mappo_train.py` runs a scratch REINFORCE-style loop and does not need demonstration files.
-- `train/bc_pretrain.py` accepts an optional dataset but can auto-generate synthetic pseudo-demos from the built-in baseline controller if none are provided.
-
-## Quick start
+## Install
 
 ```bash
-python -m pytest -q
-python train/mappo_train.py --iters 8 --steps 200 --curriculum --out train_history.json
-python eval/run_eval.py --episodes 2 --out eval/metrics.csv
+pip install -r requirements.txt
 ```
+
+## Run tests
+
+```bash
+pytest -q shepherd_codex/tests
+```
+
+## Run demo
+
+```bash
+python shepherd_codex/demos/demo_run.py
+```
+
+The demo prints planner intent per step and triggers online adapter fine-tuning with pre/post intent logs on detected failures.
+
+## Run real-time PyQt viewer
+
+```bash
+python shepherd_codex/demos/live_viewer.py
+```
+
+The viewer shows sheep/dog motion in real time, the exact LLM prompt text produced by `LLMPlanner.build_prompt(...)`, decoded planner intent, and live adapter fine-tune logs.
+
+## Run evaluation
+
+```bash
+python -c "from shepherd_codex.planner.llm_planner import LLMPlanner; from shepherd_codex.metrics.evaluation import run_evaluation; print(run_evaluation(LLMPlanner())[0])"
+```
+
+Outputs CSV and a simple plot at `shepherd_codex/eval_metrics.csv` and `shepherd_codex/eval_metrics.png`.
+
+## Implemented modules
+
+- `shepherd_codex/shepherd_env/env.py`: Gym-like environment (`reset`, `step`), left-quadrant sheep spawn and right-goal region.
+- `shepherd_codex/shepherd_env/dynamics.py`: damped double-integrator with semi-implicit Euler.
+- `shepherd_codex/shepherd_env/controllers.py`: seeking/enclosing/herding wrappers with bounded controls and StringNet-like `sig_alpha`, saturation `Ω`.
+- `shepherd_codex/shepherd_env/sensors.py`: LiDAR helper and deterministic symbolic token extractor.
+- `shepherd_codex/planner/llm_planner.py`: frozen mock base model + trainable adapter MLP with explicit LLM prompt design, snapshot/logging, and online update APIs.
+- `shepherd_codex/planner/mock_llm.py`: deterministic base planner and oracle corrective planner.
+- `shepherd_codex/metrics/failure_detector.py`: containment, formation error, and failure trigger logic.
+- `shepherd_codex/metrics/evaluation.py`: scenario sweeps (`3/2`, `5/3`, `8/5`), CSV and plot outputs.
+- `shepherd_codex/demos/live_viewer.py`: real-time PyQt visualizer with planner output + prompt inspector.
