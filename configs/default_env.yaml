@@ -1,0 +1,11 @@
+n_sheep: 5
+n_dogs: 3
+dt: 0.05
+drag: 0.1
+u_max_dog: 3.0
+u_max_sheep: 2.0
+r_agent: 0.2
+sheep_fov_deg: 90.0
+sheep_n_rays: 90
+sheep_lidar_range: 8.0
+sheep_lidar_sigma: 0.01
